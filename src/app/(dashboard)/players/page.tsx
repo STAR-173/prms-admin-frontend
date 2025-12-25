@@ -1,37 +1,39 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Search, Filter, Download, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Filter, Download, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Player } from '@/types';
 import { exportToCSV } from '@/lib/export';
-
-// Mock Data
-const INITIAL_PLAYERS: Player[] = [
-    { id: 'PID014538', name: 'Raj Patel', phone: '98985731721', balance: '5000', games: '45', kyc: 'Verified', house: 'Mumbai' },
-    { id: 'PID014539', name: 'Viraj Thaker', phone: '25761238615', balance: '15220', games: '84', kyc: 'Pending', house: 'Madurai' },
-    { id: 'PID014540', name: 'Kartik Prithvi', phone: '72186455625', balance: '513888', games: '20', kyc: 'Verified', house: 'Rajkot' },
-    { id: 'PID014541', name: 'Cristiano Ronaldo', phone: '04412128410', balance: '50000', games: '02', kyc: 'Pending', house: 'Bangalore' },
-    { id: 'PID014542', name: 'Lionel Messi', phone: '8240404402', balance: '10000', games: '24', kyc: 'Verified', house: 'Chennai' },
-];
+import { usePlayers } from './usePlayers';
+import { useDebounce } from '@/hooks/useDebounce'; // Assuming this hook exists or I'll implement debounce locally
 
 export default function PlayersPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [showFilters, setShowFilters] = useState(false);
     const [statusFilter, setStatusFilter] = useState<string>('All');
+    const [page, setPage] = useState(1);
 
-    // Efficient Filtering Logic
-    const filteredPlayers = useMemo(() => {
-        return INITIAL_PLAYERS.filter(player => {
-            const matchesSearch =
-                player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                player.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                player.phone.includes(searchQuery);
+    // Debounce search input to prevent API spam
+    const [debouncedSearch, setDebouncedSearch] = useState('');
 
-            const matchesStatus = statusFilter === 'All' || player.kyc === statusFilter;
+    // Simple debounce implementation inside component for brevity
+    React.useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+            setPage(1); // Reset to page 1 on search
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
-            return matchesSearch && matchesStatus;
-        });
-    }, [searchQuery, statusFilter]);
+    // Fetch Data
+    const { data, isLoading, isError } = usePlayers({
+        page,
+        search: debouncedSearch,
+        kycStatus: statusFilter
+    });
+
+    const players = data?.data || [];
+    const meta = data?.meta;
 
     return (
         <div>
@@ -58,7 +60,7 @@ export default function PlayersPage() {
                             <Filter size={16} /> Filters
                         </button>
                         <button
-                            onClick={() => exportToCSV(filteredPlayers, 'players_list')}
+                            onClick={() => players.length && exportToCSV(players, 'players_list')}
                             className="flex items-center gap-2 px-4 py-2 bg-[#111113] border border-neutral-900/50 rounded-lg text-sm text-neutral-300 hover:text-white transition-colors"
                         >
                             <Download size={16} /> Export
@@ -66,20 +68,24 @@ export default function PlayersPage() {
                     </div>
                 </div>
 
-                {/* Filter Panel (Conditional) */}
+                {/* Filter Panel */}
                 {showFilters && (
                     <div className="p-4 bg-[#111113] border border-neutral-900/50 rounded-lg flex items-center gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="flex items-center gap-2">
                             <span className="text-sm text-neutral-400">KYC Status:</span>
                             <select
                                 value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
+                                onChange={(e) => {
+                                    setStatusFilter(e.target.value);
+                                    setPage(1);
+                                }}
                                 className="bg-[#18181b] border border-neutral-800 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-neutral-600"
                             >
                                 <option value="All">All Status</option>
-                                <option value="Verified">Verified</option>
-                                <option value="Pending">Pending</option>
-                                <option value="Failed">Failed</option>
+                                <option value="VERIFIED">Verified</option>
+                                <option value="PENDING">Pending</option>
+                                <option value="REJECTED">Rejected</option>
+                                <option value="RESTRICTED">Restricted</option>
                             </select>
                         </div>
                         <button onClick={() => setStatusFilter('All')} className="text-xs text-red-400 hover:text-red-300 ml-auto">Reset Filters</button>
@@ -88,7 +94,19 @@ export default function PlayersPage() {
             </div>
 
             {/* Table */}
-            <div className="bg-[#111113] border border-neutral-900/50 rounded-xl overflow-hidden">
+            <div className="bg-[#111113] border border-neutral-900/50 rounded-xl overflow-hidden min-h-[400px] relative">
+                {isLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#111113]/50 z-10 backdrop-blur-sm">
+                        <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
+                    </div>
+                )}
+
+                {isError && (
+                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                        <div className="text-red-400">Failed to load players. Please check your connection.</div>
+                    </div>
+                )}
+
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="border-b border-neutral-800/50 text-neutral-400 text-sm">
@@ -96,57 +114,85 @@ export default function PlayersPage() {
                             <th className="font-medium p-4">Name</th>
                             <th className="font-medium p-4">Phone Number</th>
                             <th className="font-medium p-4 text-center">Wallet Balance</th>
-                            <th className="font-medium p-4 text-center">Games Played</th>
+                            <th className="font-medium p-4 text-center">Activity Score</th>
                             <th className="font-medium p-4 text-center">KYC Status</th>
-                            <th className="font-medium p-4 text-right pr-6">Last House</th>
+                            <th className="font-medium p-4 text-right pr-6">Current Status</th>
                         </tr>
                     </thead>
                     <tbody className="text-sm">
-                        {filteredPlayers.length > 0 ? (
-                            filteredPlayers.map((player, i) => (
-                                <tr key={i} className="group hover:bg-neutral-800/30 transition-colors border-b border-neutral-900/50 last:border-0">
-                                    <td className="p-4 pl-6 text-neutral-400">{player.id}</td>
+                        {!isLoading && players.length > 0 ? (
+                            players.map((player: Player) => (
+                                <tr key={player.id} className="group hover:bg-neutral-800/30 transition-colors border-b border-neutral-900/50 last:border-0">
+                                    <td className="p-4 pl-6 text-neutral-400 font-mono text-xs">{player.id}</td>
                                     <td className="p-4 text-white font-medium">{player.name}</td>
                                     <td className="p-4 text-neutral-400">{player.phone}</td>
-                                    <td className="p-4 text-center text-neutral-300">{player.balance}</td>
+                                    <td className="p-4 text-center text-neutral-300 font-mono">₹{player.balance}</td>
                                     <td className="p-4 text-center text-neutral-300">{player.games}</td>
                                     <td className="p-4 text-center">
                                         <StatusBadge status={player.kyc} />
                                     </td>
-                                    <td className="p-4 text-right pr-6 text-neutral-400">{player.house}</td>
+                                    <td className="p-4 text-right pr-6 text-neutral-400">
+                                        {player.house === 'Not Seated' ?
+                                            <span className="text-neutral-600">Offline</span> :
+                                            <span className="text-emerald-500">Playing at {player.house}</span>
+                                        }
+                                    </td>
                                 </tr>
                             ))
                         ) : (
-                            <tr>
-                                <td colSpan={7} className="p-8 text-center text-neutral-500">No players found matching your search.</td>
-                            </tr>
+                            !isLoading && (
+                                <tr>
+                                    <td colSpan={7} className="p-8 text-center text-neutral-500">
+                                        No players found matching your criteria.
+                                    </td>
+                                </tr>
+                            )
                         )}
                     </tbody>
                 </table>
 
-                {/* Pagination (Static for now) */}
-                <div className="flex justify-between items-center p-4 border-t border-neutral-900/50">
-                    <span className="text-sm text-neutral-500">Showing {filteredPlayers.length} results</span>
-                    <div className="flex items-center gap-2">
-                        <button className="p-1 hover:text-white text-neutral-500 transition-colors"><ChevronLeft size={16} /></button>
-                        <span className="text-sm text-white">Page 1</span>
-                        <button className="p-1 hover:text-white text-neutral-500 transition-colors"><ChevronRight size={16} /></button>
+                {/* Pagination */}
+                {meta && (
+                    <div className="flex justify-between items-center p-4 border-t border-neutral-900/50">
+                        <span className="text-sm text-neutral-500">
+                            Showing {players.length} of {meta.total} results
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1}
+                                className="p-1 hover:text-white text-neutral-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            <span className="text-sm text-white">Page {page} of {meta.lastPage}</span>
+                            <button
+                                onClick={() => setPage(p => Math.min(meta.lastPage, p + 1))}
+                                disabled={page === meta.lastPage}
+                                className="p-1 hover:text-white text-neutral-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );
 }
 
-function StatusBadge({ status }: { status: Player['kyc'] }) {
-    const styles = {
-        Verified: 'text-emerald-500 border-emerald-500/20 bg-emerald-500/10',
-        Pending: 'text-amber-500 border-amber-500/20 bg-amber-500/10',
-        Failed: 'text-red-500 border-red-500/20 bg-red-500/10',
+function StatusBadge({ status }: { status: string }) {
+    const styles: Record<string, string> = {
+        VERIFIED: 'text-emerald-500 border-emerald-500/20 bg-emerald-500/10',
+        PENDING: 'text-amber-500 border-amber-500/20 bg-amber-500/10',
+        REJECTED: 'text-red-500 border-red-500/20 bg-red-500/10',
+        NOT_SUBMITTED: 'text-neutral-500 border-neutral-500/20 bg-neutral-500/10',
+        RESTRICTED: 'text-red-500 bg-red-900/20 border-red-500/50',
+        ARCHIVED: 'text-neutral-600 border-neutral-700 bg-neutral-800'
     };
 
     return (
-        <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${styles[status]}`}>
+        <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${styles[status] || styles['NOT_SUBMITTED']}`}>
             {status}
         </span>
     );

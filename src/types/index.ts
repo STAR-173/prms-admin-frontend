@@ -28,3 +28,13 @@ export interface House {
     chips: string;
     status: 'Verified' | 'Pending' | 'Failed';
 }
+
+export interface StaffMember {
+    id: string;
+    name: string;
+    phone: string;
+    role: 'ADMIN' | 'FLOOR' | 'CASHIER' | 'KITCHEN' | 'COMPLIANCE_OFFICER';
+    houseName: string;
+    houseId: string | null;
+    isActive: boolean;
+}

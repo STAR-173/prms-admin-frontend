@@ -1,32 +1,41 @@
+'use client';
+
 import React from 'react';
-import { LayoutDashboard } from 'lucide-react';
-
-const metrics = [
-    { label: 'Total Players', value: '12,847', badge: '+230%', badgeColor: 'green' },
-    { label: 'Active Houses', value: '47', badge: '12 Cities', badgeColor: 'gray' },
-    { label: 'Total Chips', value: '4.2 Cr', badge: 'In Circulation', badgeColor: 'gray' },
-    { label: 'Active Now', value: '342', subLabel: 'Player Online', subLabelColor: 'green' },
-];
-
-const activities = [
-    { type: 'Player Check-in', typeColor: 'text-emerald-500', name: 'Rajesh Kumar', location: 'Mumbai Central', time: '2 Minutes ago' },
-    { type: 'Chips Added', typeColor: 'text-red-500', name: '10,000', location: 'Mumbai Central', time: '2 Minutes ago', meta: 'Chips' },
-    { type: 'KYC Approved', typeColor: 'text-emerald-500', name: 'Rajesh Kumar', location: 'Mumbai Central', time: '2 Minutes ago' },
-];
-
-const houses = [
-    { name: 'Mumbai Central', id: 'HID001258', players: 89, chips: '120K Chips' },
-    { name: 'Delhi NCR', id: 'HID001259', players: 12, chips: '80K Chips' },
-];
+import { useDashboardStats, useDashboardActivity } from './useDashboard';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function DashboardPage() {
+    const { data: stats } = useDashboardStats();
+    const { data: activity } = useDashboardActivity();
+
     return (
         <div>
             {/* Top Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                {metrics.map((m, i) => (
-                    <StatCard key={i} {...m} />
-                ))}
+                <StatCard
+                    label="Total Players"
+                    value={stats?.totalPlayers?.toString() || '...'}
+                    badge="Registered"
+                    badgeColor="gray"
+                />
+                <StatCard
+                    label="Active Houses"
+                    value={stats?.activeHouses?.toString() || '...'}
+                    badge="Live"
+                    badgeColor="green"
+                />
+                <StatCard
+                    label="Total Chips"
+                    value={`₹${stats?.totalChips || '...'}`}
+                    badge="System Wide"
+                    badgeColor="gray"
+                />
+                <StatCard
+                    label="Active Now"
+                    value={stats?.activeNow?.toString() || '...'}
+                    subLabel="Players Seated"
+                    subLabelColor="green"
+                />
             </div>
 
             {/* Content Split */}
@@ -36,47 +45,38 @@ export default function DashboardPage() {
                 <div className="bg-[#111113] border border-neutral-900/50 rounded-2xl p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-neutral-400 text-sm font-medium">Real-time Activity</h2>
-                        <span className="bg-red-500/10 text-red-500 text-xs font-medium px-2 py-0.5 rounded">Live</span>
+                        <span className="bg-red-500/10 text-red-500 text-xs font-medium px-2 py-0.5 rounded animate-pulse">Live</span>
                     </div>
 
                     <div className="space-y-6">
-                        {activities.map((activity, i) => (
+                        {activity?.map((item: any, i: number) => (
                             <div key={i} className="group">
                                 <div className="flex justify-between items-start mb-1">
-                                    <span className={`text-xs font-medium ${activity.typeColor}`}>{activity.type}</span>
-                                    <span className="text-xs text-neutral-500">{activity.time}</span>
+                                    <span className={`text-xs font-medium ${item.type === 'Chips Added' ? 'text-emerald-500' : 'text-red-500'}`}>
+                                        {item.type}
+                                    </span>
+                                    <span className="text-xs text-neutral-500">
+                                        {formatDistanceToNow(new Date(item.time), { addSuffix: true })}
+                                    </span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <div>
-                                        <p className="text-sm text-white font-medium">{activity.name}</p>
+                                        <p className="text-sm text-white font-medium">{item.name}</p>
                                     </div>
-                                    <span className="text-xs text-neutral-500">{activity.location}</span>
+                                    <div className="text-right">
+                                        <p className="text-xs text-neutral-300 font-mono">₹{item.amount}</p>
+                                        <span className="text-[10px] text-neutral-500">{item.location}</span>
+                                    </div>
                                 </div>
                             </div>
                         ))}
                     </div>
                 </div>
 
-                {/* Top Performing Houses Column */}
+                {/* Top Performing Houses Column (Placeholder for now, or reuse useAdminHouses) */}
                 <div className="bg-[#111113] border border-neutral-900/50 rounded-2xl p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-neutral-400 text-sm font-medium">Top Performing Houses</h2>
-                        <span className="bg-neutral-800 text-neutral-400 text-xs px-2 py-0.5 rounded">Today</span>
-                    </div>
-
-                    <div className="space-y-6">
-                        {houses.map((house, i) => (
-                            <div key={i} className="flex justify-between items-start">
-                                <div>
-                                    <p className="text-sm text-white font-medium mb-0.5">{house.name}</p>
-                                    <p className="text-xs text-neutral-500">{house.id}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-sm text-neutral-400 mb-0.5">{house.players} Players</p>
-                                    <p className="text-xs text-neutral-500">{house.chips}</p>
-                                </div>
-                            </div>
-                        ))}
+                    <div className="flex items-center justify-center h-full text-neutral-600 text-sm">
+                        Performance Charts Coming Soon
                     </div>
                 </div>
             </div>

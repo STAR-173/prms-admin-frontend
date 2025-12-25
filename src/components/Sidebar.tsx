@@ -2,10 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation'; // Added useRouter
 import {
     LayoutDashboard, Users, Building2, Wallet,
-    BarChart3, Settings, UserCircle
+    BarChart3, Settings, UserCircle, LogOut
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -19,6 +19,17 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
     const pathname = usePathname();
+    const router = useRouter();
+
+    const handleLogout = () => {
+        // Clear secure session data
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userRole');
+
+        // Redirect to login
+        router.push('/login');
+    };
 
     return (
         <aside className="w-64 flex-shrink-0 flex flex-col justify-between border-r border-neutral-900/50 p-4 pt-6 bg-[#09090b] text-white">
@@ -49,7 +60,6 @@ export function Sidebar() {
             </div>
 
             <div className="space-y-6 mb-2">
-                {/* Updated Link for Manage Staff */}
                 <Link
                     href="/staff"
                     className={clsx(
@@ -61,13 +71,25 @@ export function Sidebar() {
                     <span className="text-sm font-medium">Manage Staff</span>
                 </Link>
 
-                <div className="flex items-center gap-3 px-3">
-                    <div className="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-400">
-                        <UserCircle size={24} />
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-sm font-medium text-white">Raj Tripathi</span>
-                        <span className="text-xs text-neutral-500">EMPID006969</span>
+                <div className="pt-4 border-t border-neutral-800">
+                    <div className="flex items-center justify-between px-3">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-400">
+                                <UserCircle size={24} />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-sm font-medium text-white">Admin User</span>
+                                <span className="text-[10px] text-neutral-500 uppercase tracking-wider">Staff Access</span>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleLogout}
+                            className="text-neutral-500 hover:text-red-500 transition-colors p-2"
+                            title="Logout"
+                        >
+                            <LogOut size={18} />
+                        </button>
                     </div>
                 </div>
             </div>
