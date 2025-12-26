@@ -85,7 +85,7 @@ export default function LoginPage() {
                 {/* Header */}
                 <div className="mb-8 text-center">
                     <h1 className="mb-2 text-3xl font-medium text-white/90">
-                        {step === 'PHONE' ? 'Staff Login' : 'Verify Identity'}
+                        {step === 'PHONE' ? 'ADMIN Login' : 'Verify Identity'}
                     </h1>
                     <p className="text-sm text-neutral-500">
                         {step === 'PHONE'
