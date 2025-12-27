@@ -1,16 +1,17 @@
-// Define shapes for your data to prevent UI crashes
+// src/types/index.ts
+
 export interface Player {
     id: string;
     name: string;
     phone: string;
-    balance: string; // Using string for display, consider number for math
+    balance: string;
     games: string;
     kyc: 'Verified' | 'Pending' | 'Failed';
     house: string;
 }
 
 export interface Transaction {
-    id: string; // Mapped from 'time' in your snippet, assuming it's an ID
+    id: string;
     houseName: string;
     pid: string;
     playerName: string;
@@ -27,6 +28,7 @@ export interface House {
     players: string;
     chips: string;
     status: 'Verified' | 'Pending' | 'Failed';
+    qrCode?: string;
 }
 
 export interface StaffMember {
