@@ -126,6 +126,9 @@ function StaffModal({ staff, onClose }: { staff: StaffMember | null, onClose: ()
     const createMutation = useCreateStaff();
     const updateMutation = useUpdateStaff();
 
+    const [idFile, setIdFile] = useState<File | null>(null);
+    const [selfieFile, setSelfieFile] = useState<File | null>(null);
+
     const [formData, setFormData] = useState({
         fullName: staff?.name || '',
         phone: staff?.phone || '',
@@ -186,6 +189,31 @@ function StaffModal({ staff, onClose }: { staff: StaffMember | null, onClose: ()
                         <X size={20} />
                     </button>
                 </div>
+
+                {!isEditing && (
+                    <>
+                        <div>
+                            <label className="block text-xs font-medium text-neutral-400 mb-1">Official ID</label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                required
+                                onChange={e => setIdFile(e.target.files?.[0] || null)}
+                                className="w-full bg-[#111113] border border-neutral-800 rounded-lg p-2 text-xs text-white"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-neutral-400 mb-1">Selfie</label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                required
+                                onChange={e => setSelfieFile(e.target.files?.[0] || null)}
+                                className="w-full bg-[#111113] border border-neutral-800 rounded-lg p-2 text-xs text-white"
+                            />
+                        </div>
+                    </>
+                )}
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
 
