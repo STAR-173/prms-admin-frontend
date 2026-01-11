@@ -11,9 +11,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# BAKING ENV VARS
+# --- ENV VAR INJECTION START ---
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# --- ENV VAR INJECTION END ---
 
 RUN npm run build
 
@@ -24,11 +25,13 @@ ENV NODE_ENV=production
 ENV PORT=3002
 ENV HOSTNAME="0.0.0.0"
 
+# Runtime variable for Middleware
+ENV BACKEND_INTERNAL_URL=http://backend:4000
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-# Ensure "output: 'standalone'" is in next.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
