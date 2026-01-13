@@ -1,3 +1,4 @@
+/* path: src/types/index.ts */
 // src/types/index.ts
 
 export interface Player {
@@ -39,4 +40,25 @@ export interface StaffMember {
     houseName: string;
     houseId: string | null;
     isActive: boolean;
+}
+
+// --- NEW TYPES FOR BATCH 3 ---
+
+export interface AttendanceRecord {
+    id: string;
+    houseName: string;
+    enteredAt: string;
+    exitedAt: string | null;
+    durationMinutes: number | null;
+}
+
+export interface StaffLiveStatus {
+    id: string;
+    name: string;
+    role: string;
+    assignedHouse: string;
+    isOnline: boolean;
+    currentLocation: string;
+    lastCheckIn: string | null;
+    lastCheckOut: string | null;
 }

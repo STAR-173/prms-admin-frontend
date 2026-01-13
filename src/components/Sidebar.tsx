@@ -1,8 +1,9 @@
+/* path: src/components/Sidebar.tsx */
 "use client";
 
 import React from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation"; // Added useRouter
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -12,6 +13,7 @@ import {
   Settings,
   UserCircle,
   LogOut,
+  Fingerprint // New Icon for Attendance
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -36,12 +38,9 @@ export function Sidebar({ isMobile = false }: SidebarProps) {
   const router = useRouter();
 
   const handleLogout = () => {
-    // Clear secure session data
     localStorage.removeItem("accessToken");
     localStorage.removeItem("userId");
     localStorage.removeItem("userRole");
-
-    // Redirect to login
     router.push("/login");
   };
 
@@ -82,12 +81,28 @@ export function Sidebar({ isMobile = false }: SidebarProps) {
         </nav>
       </div>
 
-      <div className="space-y-6 mb-2">
+      <div className="space-y-1 mb-2">
+        <p className="px-3 text-xs font-bold text-neutral-600 uppercase tracking-wider mb-2">Management</p>
+
+        {/* New Attendance Link */}
+        <Link
+          href="/staff/attendance"
+          className={clsx(
+            "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+            pathname === "/staff/attendance"
+              ? "text-white bg-[#18181b]"
+              : "text-neutral-400 hover:text-white"
+          )}
+        >
+          <Fingerprint size={20} />
+          <span className="text-sm font-medium">Attendance</span>
+        </Link>
+
         <Link
           href="/staff"
           className={clsx(
             "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-            pathname === "/staff"
+            pathname === "/staff" && pathname !== "/staff/attendance"
               ? "text-white bg-[#18181b]"
               : "text-neutral-400 hover:text-white"
           )}
@@ -96,7 +111,7 @@ export function Sidebar({ isMobile = false }: SidebarProps) {
           <span className="text-sm font-medium">Manage Staff</span>
         </Link>
 
-        <div className="pt-4 border-t border-neutral-800">
+        <div className="pt-4 mt-4 border-t border-neutral-800">
           <div className="flex items-center justify-between px-3">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-400">

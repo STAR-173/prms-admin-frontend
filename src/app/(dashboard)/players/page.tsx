@@ -1,3 +1,4 @@
+/* path: src/app/(dashboard)/players/page.tsx */
 "use client";
 
 import React, { useState } from "react";
@@ -8,21 +9,122 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  History,
+  X,
+  MapPin,
+  Clock
 } from "lucide-react";
-import { Player } from "@/types";
+import { Player, AttendanceRecord } from "@/types";
 import { exportToCSV } from "@/lib/export";
 import { usePlayers } from "./usePlayers";
+import { usePlayerAttendance } from "./usePlayerAttendance";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { format } from "date-fns";
+
+// --- Player Detail Modal Component ---
+function PlayerDetailModal({ player, onClose }: { player: Player; onClose: () => void }) {
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = usePlayerAttendance(player.id, page);
+
+  const history = data?.data || [];
+  const meta = data?.meta;
+
+  return (
+    <Dialog open={!!player} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-2xl bg-[#18181b] border-neutral-800 text-white">
+        <DialogHeader className="border-b border-neutral-800 pb-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <DialogTitle className="text-xl font-bold">{player.name}</DialogTitle>
+              <p className="text-sm text-neutral-400 font-mono mt-1">{player.phone} • {player.id}</p>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="py-4">
+          <h3 className="text-sm font-bold text-neutral-400 uppercase mb-4 flex items-center gap-2">
+            <History size={16} /> Physical Presence History
+          </h3>
+
+          {isLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="animate-spin text-red-600" /></div>
+          ) : history.length === 0 ? (
+            <div className="text-center py-8 text-neutral-500 bg-neutral-900/50 rounded-lg">
+              No visit history found.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {history.map((record) => (
+                <div key={record.id} className="bg-[#111113] border border-neutral-800 p-3 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-neutral-800 rounded-full flex items-center justify-center text-neutral-400">
+                      <MapPin size={18} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">{record.houseName}</p>
+                      <p className="text-xs text-neutral-500">
+                        {format(new Date(record.enteredAt), 'MMM dd, yyyy')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="flex items-center gap-2 justify-end text-sm text-neutral-300">
+                      <span className="text-emerald-500">{format(new Date(record.enteredAt), 'HH:mm')}</span>
+                      <span className="text-neutral-600">→</span>
+                      <span className={record.exitedAt ? 'text-red-400' : 'text-emerald-400 animate-pulse'}>
+                        {record.exitedAt ? format(new Date(record.exitedAt), 'HH:mm') : 'Active'}
+                      </span>
+                    </div>
+                    {record.durationMinutes && (
+                      <p className="text-xs text-neutral-500 mt-0.5 flex items-center gap-1 justify-end">
+                        <Clock size={10} /> {Math.floor(record.durationMinutes / 60)}h {record.durationMinutes % 60}m
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Simple Pagination */}
+          {meta && meta.total > 10 && (
+            <div className="flex justify-between items-center mt-4 pt-4 border-t border-neutral-800">
+              <span className="text-xs text-neutral-500">Page {page}</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="p-1 hover:bg-neutral-800 rounded disabled:opacity-50"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  onClick={() => setPage(p => p + 1)} // Simplistic, ideally use meta.lastPage
+                  disabled={history.length < 10}
+                  className="p-1 hover:bg-neutral-800 rounded disabled:opacity-50"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function PlayersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [page, setPage] = useState(1);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null); // * State for Modal
 
   // Debounce search input to prevent API spam
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  // Simple debounce implementation inside component for brevity
   React.useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
@@ -61,11 +163,10 @@ export default function PlayersPage() {
           <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center justify-center gap-2 px-4 py-2 border rounded-lg text-sm transition-colors ${
-                showFilters
+              className={`flex items-center justify-center gap-2 px-4 py-2 border rounded-lg text-sm transition-colors ${showFilters
                   ? "bg-neutral-800 border-neutral-600 text-white"
                   : "bg-[#111113] border-neutral-900/50 text-neutral-300 hover:text-white"
-              }`}
+                }`}
             >
               <Filter size={16} />
               <span className="hidden sm:inline">Filters</span>
@@ -149,47 +250,48 @@ export default function PlayersPage() {
             <tbody className="text-sm">
               {!isLoading && players.length > 0
                 ? players.map((player: Player) => (
-                    <tr
-                      key={player.id}
-                      className="group hover:bg-neutral-800/30 transition-colors border-b border-neutral-900/50 last:border-0"
-                    >
-                      <td className="p-4 pl-6 text-neutral-400 font-mono text-xs">
-                        {player.id}
-                      </td>
-                      <td className="p-4 text-white font-medium">
-                        {player.name}
-                      </td>
-                      <td className="p-4 text-neutral-400">{player.phone}</td>
-                      <td className="p-4 text-center text-neutral-300 font-mono">
-                        ₹{player.balance}
-                      </td>
-                      <td className="p-4 text-center text-neutral-300">
-                        {player.games}
-                      </td>
-                      <td className="p-4 text-center">
-                        <StatusBadge status={player.kyc} />
-                      </td>
-                      <td className="p-4 text-right pr-6 text-neutral-400">
-                        {player.house === "Not Seated" ? (
-                          <span className="text-neutral-600">Offline</span>
-                        ) : (
-                          <span className="text-emerald-500">
-                            Playing at {player.house}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                  <tr
+                    key={player.id}
+                    onClick={() => setSelectedPlayer(player)} // * Open Modal
+                    className="group hover:bg-neutral-800/30 transition-colors border-b border-neutral-900/50 last:border-0 cursor-pointer"
+                  >
+                    <td className="p-4 pl-6 text-neutral-400 font-mono text-xs">
+                      {player.id}
+                    </td>
+                    <td className="p-4 text-white font-medium">
+                      {player.name}
+                    </td>
+                    <td className="p-4 text-neutral-400">{player.phone}</td>
+                    <td className="p-4 text-center text-neutral-300 font-mono">
+                      ₹{player.balance}
+                    </td>
+                    <td className="p-4 text-center text-neutral-300">
+                      {player.games}
+                    </td>
+                    <td className="p-4 text-center">
+                      <StatusBadge status={player.kyc} />
+                    </td>
+                    <td className="p-4 text-right pr-6 text-neutral-400">
+                      {player.house === "Not Seated" ? (
+                        <span className="text-neutral-600">Offline</span>
+                      ) : (
+                        <span className="text-emerald-500">
+                          Playing at {player.house}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))
                 : !isLoading && (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className="p-8 text-center text-neutral-500"
-                      >
-                        No players found matching your criteria.
-                      </td>
-                    </tr>
-                  )}
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="p-8 text-center text-neutral-500"
+                    >
+                      No players found matching your criteria.
+                    </td>
+                  </tr>
+                )}
             </tbody>
           </table>
         </div>
@@ -224,6 +326,14 @@ export default function PlayersPage() {
           </div>
         )}
       </div>
+
+      {/* Detail Modal */}
+      {selectedPlayer && (
+        <PlayerDetailModal
+          player={selectedPlayer}
+          onClose={() => setSelectedPlayer(null)}
+        />
+      )}
     </div>
   );
 }
@@ -240,9 +350,8 @@ function StatusBadge({ status }: { status: string }) {
 
   return (
     <span
-      className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${
-        styles[status] || styles["NOT_SUBMITTED"]
-      }`}
+      className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${styles[status] || styles["NOT_SUBMITTED"]
+        }`}
     >
       {status}
     </span>
