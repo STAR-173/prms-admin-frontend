@@ -1,4 +1,4 @@
-/* path: src/components/Sidebar.tsx */
+/* path: prms-admin-frontend/src/components/Sidebar.tsx */
 "use client";
 
 import React from "react";
@@ -13,7 +13,7 @@ import {
   Settings,
   UserCircle,
   LogOut,
-  Fingerprint // New Icon for Attendance
+  Fingerprint
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -84,7 +84,6 @@ export function Sidebar({ isMobile = false }: SidebarProps) {
       <div className="space-y-1 mb-2">
         <p className="px-3 text-xs font-bold text-neutral-600 uppercase tracking-wider mb-2">Management</p>
 
-        {/* New Attendance Link */}
         <Link
           href="/staff/attendance"
           className={clsx(
@@ -102,7 +101,8 @@ export function Sidebar({ isMobile = false }: SidebarProps) {
           href="/staff"
           className={clsx(
             "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-            pathname === "/staff" && pathname !== "/staff/attendance"
+            // * Fixed Logic: Strict equality is sufficient here.
+            pathname === "/staff"
               ? "text-white bg-[#18181b]"
               : "text-neutral-400 hover:text-white"
           )}

@@ -1,30 +1,40 @@
-import axios from 'axios';
+/* path: prms-admin-frontend/src/lib/api.ts */
+import axios from "axios";
 
-// Point to the Next.js API route, which proxies to Backend
+// Create Axios instance
 const api = axios.create({
-    baseURL: '/api', // This triggers the rewrite in next.config.ts
+    // Use relative path so Next.js Middleware can proxy it
+    baseURL: "/api",
     headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
     },
 });
 
-// Request Interceptor (Attach Token)
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-});
+// Request Interceptor (Auth Token)
+api.interceptors.request.use(
+    (config) => {
+        // Only access localStorage on client-side
+        if (typeof window !== "undefined") {
+            const token = localStorage.getItem("accessToken");
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
 
-// Response Interceptor (Handle 401)
+// Response Interceptor (Error Handling)
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
-            localStorage.clear();
-            if (window.location.pathname !== '/login') {
-                window.location.href = '/login';
+        // Handle 401 (Unauthorized) -> Redirect to Login
+        if (error.response?.status === 401 && typeof window !== "undefined") {
+            // Prevent infinite loop if already on login
+            if (!window.location.pathname.startsWith('/login')) {
+                localStorage.clear();
+                window.location.href = "/login";
             }
         }
         return Promise.reject(error);
