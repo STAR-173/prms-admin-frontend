@@ -257,8 +257,8 @@ function StaffModal({ staff, onClose }: { staff: StaffMember | null, onClose: ()
                             <option value="FLOOR">Floor Manager</option>
                             <option value="CASHIER">Cashier</option>
                             <option value="KITCHEN">Kitchen Staff</option>
+                            <option value="FLOOR_STAFF">Floor Staff (Restricted)</option> {/* * NEW */}
                             <option value="ADMIN">Super Admin</option>
-                            <option value="COMPLIANCE_OFFICER">Compliance Officer</option>
                         </select>
                     </div>
 

@@ -36,7 +36,7 @@ export interface StaffMember {
     id: string;
     name: string;
     phone: string;
-    role: 'ADMIN' | 'FLOOR' | 'CASHIER' | 'KITCHEN' | 'COMPLIANCE_OFFICER';
+    role: 'ADMIN' | 'FLOOR' | 'FLOOR_STAFF' | 'CASHIER' | 'KITCHEN'; // * Updated
     houseName: string;
     houseId: string | null;
     isActive: boolean;
