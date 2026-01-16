@@ -5,6 +5,8 @@ import { Search, Plus, MoreVertical, Shield, Mail, Phone, Building2, X, Loader2,
 import { useStaff, useCreateStaff, useUpdateStaff } from './useStaff';
 import { useHouses } from '../houses/useHouses';
 import { StaffMember } from '@/types';
+import api from '@/lib/api'; // * Import API client for presign call
+import toast from 'react-hot-toast';
 
 // --- MAIN PAGE COMPONENT ---
 export default function StaffPage() {
@@ -128,6 +130,7 @@ function StaffModal({ staff, onClose }: { staff: StaffMember | null, onClose: ()
 
     const [idFile, setIdFile] = useState<File | null>(null);
     const [selfieFile, setSelfieFile] = useState<File | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     const [formData, setFormData] = useState({
         fullName: staff?.name || '',
@@ -139,49 +142,97 @@ function StaffModal({ staff, onClose }: { staff: StaffMember | null, onClose: ()
 
     const isEditing = !!staff;
 
+    // * Helper: Handle File Upload Flow
+    const uploadFile = async (file: File) => {
+        try {
+            // 1. Get Presigned URL
+            const { data: presign } = await api.post('/kyc/presign', {
+                fileName: file.name,
+                contentType: file.type
+            });
+
+            // 2. Direct PUT to S3
+            const uploadRes = await fetch(presign.signedUrl, {
+                method: 'PUT',
+                body: file,
+                headers: {
+                    'Content-Type': file.type
+                }
+            });
+
+            if (!uploadRes.ok) throw new Error('S3 Upload Failed');
+
+            return presign.key;
+        } catch (error) {
+            console.error("Upload error", error);
+            throw error;
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        try {
-            if (isEditing && staff) {
-                // Update Logic: Sanitize payload
-                // 1. Remove 'phone' (cannot update identity)
-                // 2. Ensure assignedHouseId is sent as undefined or null if empty string
-                const { phone, ...updateData } = formData;
 
-                // Optional: Clean up empty strings to null if backend expects strict types, 
-                // though your service handles falsy checks.
+        try {
+            let docS3KeyId;
+            let docS3KeySelfie;
+
+            // 1. Handle Uploads for New Staff
+            if (!isEditing) {
+                if (!idFile || !selfieFile) {
+                    toast.error("Both ID and Selfie are required for new staff.");
+                    return;
+                }
+
+                setIsUploading(true);
+                try {
+                    // Parallel Upload
+                    const results = await Promise.all([
+                        uploadFile(idFile),
+                        uploadFile(selfieFile)
+                    ]);
+                    docS3KeyId = results[0];
+                    docS3KeySelfie = results[1];
+                } catch (e) {
+                    toast.error("Failed to upload documents.");
+                    setIsUploading(false);
+                    return;
+                }
+                setIsUploading(false);
+            }
+
+            // 2. Perform Mutation
+            if (isEditing && staff) {
+                const { phone, ...updateData } = formData;
                 const payload = {
                     ...updateData,
                     assignedHouseId: updateData.assignedHouseId || null
                 };
-
                 await updateMutation.mutateAsync({ id: staff.id, data: payload });
             } else {
-                // Create Logic: Sanitize payload
-                // 1. Remove 'isActive' (defaults to true on backend for new staff)
                 const { isActive, ...createData } = formData;
-
                 const payload = {
                     ...createData,
-                    assignedHouseId: createData.assignedHouseId || null
+                    assignedHouseId: createData.assignedHouseId || null,
+                    docS3KeyId, // * Send keys to backend
+                    docS3KeySelfie
                 };
-
                 await createMutation.mutateAsync(payload);
             }
+            toast.success(isEditing ? 'Staff updated' : 'Staff created');
             onClose();
         } catch (error: any) {
             console.error('Operation failed:', error);
-            // Alert the actual error message from backend if available
             alert(error.response?.data?.message || 'Operation failed. Check inputs.');
+            setIsUploading(false);
         }
     };
 
-    const isProcessing = createMutation.isPending || updateMutation.isPending;
+    const isProcessing = createMutation.isPending || updateMutation.isPending || isUploading;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="w-full max-w-md bg-[#18181b] border border-neutral-800 rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-                <div className="flex justify-between items-center p-6 border-b border-neutral-800">
+            <div className="w-full max-w-md bg-[#18181b] border border-neutral-800 rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center p-6 border-b border-neutral-800 sticky top-0 bg-[#18181b] z-10">
                     <h2 className="text-lg font-bold text-white">
                         {isEditing ? 'Edit Staff Member' : 'Add New Staff'}
                     </h2>
@@ -190,32 +241,33 @@ function StaffModal({ staff, onClose }: { staff: StaffMember | null, onClose: ()
                     </button>
                 </div>
 
-                {!isEditing && (
-                    <>
-                        <div>
-                            <label className="block text-xs font-medium text-neutral-400 mb-1">Official ID</label>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                required
-                                onChange={e => setIdFile(e.target.files?.[0] || null)}
-                                className="w-full bg-[#111113] border border-neutral-800 rounded-lg p-2 text-xs text-white"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-neutral-400 mb-1">Selfie</label>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                required
-                                onChange={e => setSelfieFile(e.target.files?.[0] || null)}
-                                className="w-full bg-[#111113] border border-neutral-800 rounded-lg p-2 text-xs text-white"
-                            />
-                        </div>
-                    </>
-                )}
-
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
+
+                    {!isEditing && (
+                        <div className="space-y-4 p-4 bg-neutral-900/50 rounded-xl border border-neutral-800">
+                            <p className="text-xs font-bold text-neutral-500 uppercase">KYC Documents</p>
+                            <div>
+                                <label className="block text-xs font-medium text-neutral-400 mb-1">Official ID</label>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    required
+                                    onChange={e => setIdFile(e.target.files?.[0] || null)}
+                                    className="w-full bg-[#111113] border border-neutral-800 rounded-lg p-2 text-xs text-white file:mr-4 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-neutral-800 file:text-neutral-300 hover:file:bg-neutral-700"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-neutral-400 mb-1">Selfie</label>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    required
+                                    onChange={e => setSelfieFile(e.target.files?.[0] || null)}
+                                    className="w-full bg-[#111113] border border-neutral-800 rounded-lg p-2 text-xs text-white file:mr-4 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-neutral-800 file:text-neutral-300 hover:file:bg-neutral-700"
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     {/* Name */}
                     <div>
@@ -255,9 +307,9 @@ function StaffModal({ staff, onClose }: { staff: StaffMember | null, onClose: ()
                             className="w-full bg-[#111113] border border-neutral-800 rounded-lg p-2.5 text-sm text-white focus:border-red-900 focus:ring-1 focus:ring-red-900 outline-none"
                         >
                             <option value="FLOOR">Floor Manager</option>
+                            <option value="FLOOR_STAFF">Floor Staff (Restricted)</option>
                             <option value="CASHIER">Cashier</option>
                             <option value="KITCHEN">Kitchen Staff</option>
-                            <option value="FLOOR_STAFF">Floor Staff (Restricted)</option> {/* * NEW */}
                             <option value="ADMIN">Super Admin</option>
                         </select>
                     </div>
@@ -294,7 +346,7 @@ function StaffModal({ staff, onClose }: { staff: StaffMember | null, onClose: ()
                     )}
 
                     {/* Footer Actions */}
-                    <div className="flex gap-3 pt-4 border-t border-neutral-800 mt-2">
+                    <div className="flex gap-3 pt-4 border-t border-neutral-800 mt-2 sticky bottom-0 bg-[#18181b]">
                         <button
                             type="button"
                             onClick={onClose}
@@ -308,7 +360,7 @@ function StaffModal({ staff, onClose }: { staff: StaffMember | null, onClose: ()
                             className="flex-1 px-4 py-2 bg-[#b91c1c] hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
-                            {isEditing ? 'Save Changes' : 'Create Account'}
+                            {isEditing ? 'Save Changes' : isUploading ? 'Uploading...' : 'Create Account'}
                         </button>
                     </div>
 
