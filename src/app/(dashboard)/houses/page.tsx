@@ -125,8 +125,9 @@ export default function HousesPage() {
                   <td className="p-4 text-center text-neutral-300">
                     {house.players}
                   </td>
+                  {/* * CHANGE: Removed Currency Symbol, used floor */}
                   <td className="p-4 text-center text-emerald-500 font-mono">
-                    ₹{house.chips}
+                    {Math.floor(Number(house.chips)).toLocaleString()}
                   </td>
                   <td className="p-4 text-right pr-6">
                     <button

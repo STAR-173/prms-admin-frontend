@@ -143,6 +143,8 @@ export default function PlayersPage() {
   const players = data?.data || [];
   const meta = data?.meta;
 
+  const formatChips = (val: string | number) => Math.floor(Number(val) || 0).toLocaleString();
+
   return (
     <div>
       {/* Toolbar */}
@@ -164,8 +166,8 @@ export default function PlayersPage() {
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center justify-center gap-2 px-4 py-2 border rounded-lg text-sm transition-colors ${showFilters
-                  ? "bg-neutral-800 border-neutral-600 text-white"
-                  : "bg-[#111113] border-neutral-900/50 text-neutral-300 hover:text-white"
+                ? "bg-neutral-800 border-neutral-600 text-white"
+                : "bg-[#111113] border-neutral-900/50 text-neutral-300 hover:text-white"
                 }`}
             >
               <Filter size={16} />
@@ -239,7 +241,7 @@ export default function PlayersPage() {
                 <th className="font-medium p-4 pl-6">Player ID</th>
                 <th className="font-medium p-4">Name</th>
                 <th className="font-medium p-4">Phone Number</th>
-                <th className="font-medium p-4 text-center">Wallet Balance</th>
+                <th className="font-medium p-4 text-center">Chips Balance</th>
                 <th className="font-medium p-4 text-center">Activity Score</th>
                 <th className="font-medium p-4 text-center">KYC Status</th>
                 <th className="font-medium p-4 text-right pr-6">
@@ -262,8 +264,9 @@ export default function PlayersPage() {
                       {player.name}
                     </td>
                     <td className="p-4 text-neutral-400">{player.phone}</td>
+                    {/* * CHANGE: Chips format */}
                     <td className="p-4 text-center text-neutral-300 font-mono">
-                      ₹{player.balance}
+                      {formatChips(player.balance)}
                     </td>
                     <td className="p-4 text-center text-neutral-300">
                       {player.games}

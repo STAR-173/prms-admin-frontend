@@ -13,6 +13,9 @@ export default function ChipLedgerPage() {
   const transactions = data?.data || [];
   const totalPages = data ? Math.ceil(data.total / 20) : 1;
 
+  // * Helper
+  const formatChips = (val: string | number) => Math.floor(Number(val) || 0).toLocaleString();
+
   return (
     <div>
       {/* Toolbar */}
@@ -23,11 +26,10 @@ export default function ChipLedgerPage() {
               setFilterType("All");
               setPage(1);
             }}
-            className={`px-5 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-              filterType === "All"
+            className={`px-5 py-2.5 text-sm font-medium rounded-lg transition-colors ${filterType === "All"
                 ? "bg-[#b91c1c] text-white"
                 : "bg-[#111113] border border-neutral-800 text-neutral-400 hover:text-white"
-            }`}
+              }`}
           >
             All Transactions
           </button>
@@ -36,11 +38,10 @@ export default function ChipLedgerPage() {
               setFilterType("Credit");
               setPage(1);
             }}
-            className={`px-5 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-              filterType === "Credit"
+            className={`px-5 py-2.5 text-sm font-medium rounded-lg transition-colors ${filterType === "Credit"
                 ? "bg-[#b91c1c] text-white"
                 : "bg-[#111113] border border-neutral-800 text-neutral-400 hover:text-white"
-            }`}
+              }`}
           >
             Added (Credit)
           </button>
@@ -49,11 +50,10 @@ export default function ChipLedgerPage() {
               setFilterType("Debit");
               setPage(1);
             }}
-            className={`px-5 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-              filterType === "Debit"
+            className={`px-5 py-2.5 text-sm font-medium rounded-lg transition-colors ${filterType === "Debit"
                 ? "bg-[#b91c1c] text-white"
                 : "bg-[#111113] border border-neutral-800 text-neutral-400 hover:text-white"
-            }`}
+              }`}
           >
             Redeemed (Debit)
           </button>
@@ -96,7 +96,7 @@ export default function ChipLedgerPage() {
                   Type
                 </th>
                 <th className="font-medium p-4 text-center text-neutral-200">
-                  Amount
+                  Chips
                 </th>
                 <th className="font-medium p-4 text-right pr-6 text-neutral-200">
                   Method
@@ -122,14 +122,14 @@ export default function ChipLedgerPage() {
                     {t.pname}
                   </td>
                   <td
-                    className={`p-4 text-center font-medium ${
-                      t.type === "BUY_IN" ? "text-emerald-500" : "text-red-500"
-                    }`}
+                    className={`p-4 text-center font-medium ${t.type === "BUY_IN" ? "text-emerald-500" : "text-red-500"
+                      }`}
                   >
                     {t.type === "BUY_IN" ? "Credit" : "Debit"}
                   </td>
                   <td className="p-4 text-center text-neutral-300 font-mono">
-                    ₹{t.amount}
+                    {/* * CHANGE: Integer Display */}
+                    {formatChips(t.amount)}
                   </td>
                   <td className="p-4 text-right pr-6 text-neutral-500">
                     {t.method}

@@ -8,6 +8,11 @@ export default function DashboardPage() {
   const { data: stats } = useDashboardStats();
   const { data: activity } = useDashboardActivity();
 
+  // * Helper to format chips as integers with comma separation
+  const formatChips = (amount: string | number) => {
+    return Math.floor(Number(amount) || 0).toLocaleString();
+  };
+
   return (
     <div>
       {/* Header with Install Button */}
@@ -36,7 +41,9 @@ export default function DashboardPage() {
         />
         <StatCard
           label="Total Chips"
-          value={`₹${stats?.totalChips || "..."}`}
+          // * REMOVED: Currency Symbol (₹)
+          // * ADDED: 'Chips' suffix for clarity
+          value={`${formatChips(stats?.totalChips)} Chips`}
           badge="System Wide"
           badgeColor="gray"
         />
@@ -66,11 +73,10 @@ export default function DashboardPage() {
               <div key={i} className="group">
                 <div className="flex justify-between items-start mb-1">
                   <span
-                    className={`text-xs font-medium ${
-                      item.type === "Chips Added"
-                        ? "text-emerald-500"
-                        : "text-red-500"
-                    }`}
+                    className={`text-xs font-medium ${item.type === "Chips Added"
+                      ? "text-emerald-500"
+                      : "text-red-500"
+                      }`}
                   >
                     {item.type}
                   </span>
@@ -87,8 +93,9 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <div className="text-right">
+                    {/* * REMOVED: Currency Symbol. Enforced integer formatting. */}
                     <p className="text-xs text-neutral-300 font-mono">
-                      ₹{item.amount}
+                      {formatChips(item.amount)} Chips
                     </p>
                     <span className="text-[10px] text-neutral-500">
                       {item.location}
@@ -126,11 +133,10 @@ function StatCard({
         <span className="text-neutral-400 text-sm font-medium">{label}</span>
         {badge && (
           <span
-            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              badgeColor === "green"
-                ? "text-emerald-500 bg-emerald-500/10"
-                : "text-neutral-400 bg-neutral-800"
-            }`}
+            className={`text-xs px-2 py-0.5 rounded-full font-medium ${badgeColor === "green"
+              ? "text-emerald-500 bg-emerald-500/10"
+              : "text-neutral-400 bg-neutral-800"
+              }`}
           >
             {badge}
           </span>
@@ -142,11 +148,10 @@ function StatCard({
         </h3>
         {subLabel && (
           <span
-            className={`text-xs ${
-              subLabelColor === "green"
-                ? "text-emerald-500"
-                : "text-neutral-500"
-            }`}
+            className={`text-xs ${subLabelColor === "green"
+              ? "text-emerald-500"
+              : "text-neutral-500"
+              }`}
           >
             {subLabel}
           </span>

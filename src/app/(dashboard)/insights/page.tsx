@@ -30,6 +30,10 @@ export default function InsightsPage() {
   const topHouses = data?.topHouses || [];
   const activities = data?.recentActivity || [];
 
+  const formatChips = (amount: string | number) => {
+    return Math.floor(Number(amount) || 0).toLocaleString();
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -49,11 +53,10 @@ export default function InsightsPage() {
               onClick={() => setTimeRange(range)}
               className={`
                                 px-4 py-2 text-sm font-medium rounded-lg transition-colors
-                                ${
-                                  timeRange === range
-                                    ? "bg-[#b91c1c] text-white shadow-sm shadow-red-900/20"
-                                    : "bg-[#18181b] text-neutral-400 hover:text-white border border-neutral-800"
-                                }
+                                ${timeRange === range
+                  ? "bg-[#b91c1c] text-white shadow-sm shadow-red-900/20"
+                  : "bg-[#18181b] text-neutral-400 hover:text-white border border-neutral-800"
+                }
                             `}
             >
               {range}
@@ -88,14 +91,11 @@ export default function InsightsPage() {
         />
         <StatCard
           label="Total Volume"
-          value={`₹${stats?.totalChips || "0"}`}
-          badge="Buy-Ins"
+          // * CHANGE: Replaced ₹ with 'Chips'
+          value={`${formatChips(stats?.totalChips)}`}
+          badge="Chips"
           badgeColor="gray"
         />
-        {/* 
-                    NOTE: 'New Signups' card is hidden/disabled because Backend Schema 
-                    lacks 'createdAt' on Users table. Re-enable once Schema is patched.
-                */}
         <StatCard
           label="Avg Activity"
           value="--"
@@ -136,11 +136,10 @@ export default function InsightsPage() {
               <div key={i} className="group">
                 <div className="flex justify-between items-start mb-1">
                   <span
-                    className={`text-xs font-medium ${
-                      activity.type === "Chips Added"
+                    className={`text-xs font-medium ${activity.type === "Chips Added"
                         ? "text-emerald-500"
                         : "text-red-500"
-                    }`}
+                      }`}
                   >
                     {activity.type}
                   </span>
@@ -157,8 +156,9 @@ export default function InsightsPage() {
                     </p>
                   </div>
                   <div className="text-right">
+                    {/* * CHANGE: Chips format */}
                     <p className="text-xs text-neutral-300 font-mono">
-                      ₹{activity.amount}
+                      {formatChips(activity.amount)}
                     </p>
                     <span className="text-[10px] text-neutral-500">
                       {activity.location}
@@ -198,8 +198,9 @@ export default function InsightsPage() {
                   </p>
                 </div>
                 <div className="text-right">
+                  {/* * CHANGE: Chips format */}
                   <p className="text-sm text-emerald-500 font-mono mb-0.5">
-                    ₹{house.chips}
+                    {formatChips(house.chips)}
                   </p>
                   <p className="text-xs text-neutral-500">
                     {house.players} Players
@@ -226,11 +227,10 @@ function StatCard({ label, value, badge, badgeColor }: any) {
         <span className="text-neutral-400 text-sm font-medium">{label}</span>
         {badge && (
           <span
-            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              badgeColor === "green"
+            className={`text-xs px-2 py-0.5 rounded-full font-medium ${badgeColor === "green"
                 ? "text-emerald-500 bg-emerald-500/10"
                 : "text-neutral-400 bg-neutral-800"
-            }`}
+              }`}
           >
             {badge}
           </span>
@@ -320,8 +320,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       <div className="bg-[#18181b]/90 border border-neutral-800 p-3 rounded-lg shadow-xl backdrop-blur-sm">
         <p className="text-neutral-400 text-xs mb-1">{label}</p>
         <p className="text-white font-bold text-sm">
-          {payload[0].value}{" "}
-          <span className="text-neutral-500 font-normal"></span>
+          {Math.floor(payload[0].value).toLocaleString()}{" "}
+          <span className="text-neutral-500 font-normal">Chips</span>
         </p>
       </div>
     );
