@@ -2,22 +2,31 @@
 "use client";
 
 import React, { useState } from "react";
-import { useStaffLiveStatus } from "./useStaffAttendance";
-import { Loader2, Search, MapPin, Clock, ShieldAlert, Download, Calendar } from "lucide-react";
+import { useStaffLiveStatus, useMarkAttendance } from "./useStaffAttendance"; // * Updated Import
+import { Loader2, Search, MapPin, Clock, ShieldAlert, Download, Calendar, CheckSquare, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { clsx } from "clsx";
-import { exportToCSV } from "@/lib/export"; // Ensure this helper handles generic objects
-import api from "@/lib/api"; // Import direct API for the report fetch
+import { exportToCSV } from "@/lib/export";
+import api from "@/lib/api";
 import toast from "react-hot-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"; // Ensure these exist or use standard HTML
+import { Button } from "@/components/ui/button";
 
 export default function StaffAttendancePage() {
     const { data: staffList = [], isLoading } = useStaffLiveStatus();
+    const { mutate: markAttendance, isPending: isMarking } = useMarkAttendance(); // * Mutation
+
     const [search, setSearch] = useState("");
 
     // Report State
-    const [reportMonth, setReportMonth] = useState(new Date().getMonth() + 1); // 1-12
+    const [reportMonth, setReportMonth] = useState(new Date().getMonth() + 1);
     const [reportYear, setReportYear] = useState(new Date().getFullYear());
     const [isExporting, setIsExporting] = useState(false);
+
+    // Modal State
+    const [isMarkModalOpen, setIsMarkModalOpen] = useState(false);
+    const [selectedStaffId, setSelectedStaffId] = useState("");
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); // Today YYYY-MM-DD
 
     const filtered = staffList.filter(s =>
         s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -31,30 +40,42 @@ export default function StaffAttendancePage() {
         setIsExporting(true);
         try {
             const { data } = await api.get(`/attendance/admin/report?month=${reportMonth}&year=${reportYear}`);
-
             if (!data || data.length === 0) {
-                toast.error("No records found for this period");
+                toast.error("No records found");
                 return;
             }
-
-            // Transform for CSV readability
             const csvData = data.map((row: any) => ({
                 "Staff Name": row.name,
                 "Designation": row.designation,
                 "Date": row.date,
-                "Shift Logs (In-Out)": row.timeLog,
-                "Total Hours": row.hoursWorked,
-                "Attendance Status": row.status // Contains the >8hr logic
+                "Shift Logs": row.timeLog,
+                "Hours": row.hoursWorked,
+                "Status": row.status
             }));
-
-            exportToCSV(csvData, `Attendance_Report_${reportYear}_${reportMonth}`);
+            exportToCSV(csvData, `Attendance_${reportYear}_${reportMonth}`);
             toast.success("Report downloaded");
         } catch (error) {
-            console.error(error);
             toast.error("Failed to generate report");
         } finally {
             setIsExporting(false);
         }
+    };
+
+    // * Handle Manual Mark Submit
+    const handleMarkSubmit = () => {
+        if (!selectedStaffId) return toast.error("Select a staff member");
+        if (!selectedDate) return toast.error("Select a date");
+
+        markAttendance({ staffId: selectedStaffId, date: selectedDate }, {
+            onSuccess: () => {
+                toast.success("Attendance marked successfully");
+                setIsMarkModalOpen(false);
+                setSelectedStaffId("");
+            },
+            onError: (err: any) => {
+                toast.error(err.response?.data?.message || "Failed to mark attendance");
+            }
+        });
     };
 
     return (
@@ -65,7 +86,6 @@ export default function StaffAttendancePage() {
                     <p className="text-neutral-400 text-sm">Real-time presence monitoring & Reporting.</p>
                 </div>
 
-                {/* Right Side: Stats & Export Controls */}
                 <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
                     {/* Live Counter */}
                     <div className="flex items-center gap-3 bg-[#111113] border border-neutral-900/50 px-4 py-2 rounded-lg">
@@ -76,11 +96,17 @@ export default function StaffAttendancePage() {
                         <span className="text-sm text-white font-medium">{onlineCount} Online</span>
                     </div>
 
+                    {/* NEW: Mark Attendance Button */}
+                    <button
+                        onClick={() => setIsMarkModalOpen(true)}
+                        className="flex items-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-700 px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                    >
+                        <CheckSquare size={16} /> Mark Present
+                    </button>
+
                     {/* Export Controls */}
                     <div className="flex items-center gap-2 bg-[#111113] border border-neutral-900/50 p-1 rounded-lg">
-                        <div className="flex items-center px-2 text-neutral-500">
-                            <Calendar size={16} />
-                        </div>
+                        <div className="flex items-center px-2 text-neutral-500"><Calendar size={16} /></div>
                         <select
                             value={reportMonth}
                             onChange={(e) => setReportMonth(Number(e.target.value))}
@@ -115,9 +141,7 @@ export default function StaffAttendancePage() {
 
             {/* Search Toolbar */}
             <div className="relative max-w-md">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500">
-                    <Search size={18} />
-                </div>
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500"><Search size={18} /></div>
                 <input
                     type="text"
                     placeholder="Search staff..."
@@ -128,66 +152,34 @@ export default function StaffAttendancePage() {
             </div>
 
             {isLoading ? (
-                <div className="flex justify-center py-20">
-                    <Loader2 className="w-8 h-8 text-red-600 animate-spin" />
-                </div>
+                <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-red-600 animate-spin" /></div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filtered.map((staff) => (
-                        <div
-                            key={staff.id}
-                            className={clsx(
-                                "border rounded-xl p-5 relative overflow-hidden transition-colors",
-                                staff.isOnline
-                                    ? "bg-[#111113] border-emerald-900/30"
-                                    : "bg-[#111113] border-neutral-900/50 opacity-75"
-                            )}
-                        >
-                            {staff.isOnline && (
-                                <div className="absolute top-0 right-0 p-3">
-                                    <span className="flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
-                                </div>
-                            )}
-
+                        <div key={staff.id} className={clsx("border rounded-xl p-5 relative overflow-hidden transition-colors", staff.isOnline ? "bg-[#111113] border-emerald-900/30" : "bg-[#111113] border-neutral-900/50 opacity-75")}>
+                            {staff.isOnline && <div className="absolute top-0 right-0 p-3"><span className="flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span></div>}
                             <div className="flex items-start gap-4 mb-4">
-                                <div className="w-12 h-12 rounded-full bg-neutral-800 flex items-center justify-center text-lg font-bold text-neutral-400 border border-neutral-700">
-                                    {staff.name.charAt(0)}
-                                </div>
+                                <div className="w-12 h-12 rounded-full bg-neutral-800 flex items-center justify-center text-lg font-bold text-neutral-400 border border-neutral-700">{staff.name.charAt(0)}</div>
                                 <div>
                                     <h3 className="text-white font-bold text-lg leading-tight">{staff.name}</h3>
                                     <p className="text-xs text-neutral-500 font-mono mt-1">{staff.role}</p>
                                 </div>
                             </div>
-
                             <div className="space-y-3">
-                                {/* Location Badge */}
                                 <div className="flex items-center gap-2 text-sm">
                                     <MapPin size={16} className={staff.isOnline ? "text-emerald-500" : "text-neutral-600"} />
-                                    <span className={staff.isOnline ? "text-white" : "text-neutral-500"}>
-                                        {staff.currentLocation}
-                                    </span>
+                                    <span className={staff.isOnline ? "text-white" : "text-neutral-500"}>{staff.currentLocation}</span>
                                 </div>
-
-                                {/* Last Check In Time */}
                                 <div className="flex items-center gap-2 text-sm">
                                     <Clock size={16} className="text-neutral-600" />
                                     <span className="text-neutral-400">
-                                        {staff.isOnline && staff.lastCheckIn
-                                            ? `Checked in ${formatDistanceToNow(new Date(staff.lastCheckIn), { addSuffix: true })}`
-                                            : staff.lastCheckIn
-                                                ? `Last seen ${formatDistanceToNow(new Date(staff.lastCheckIn), { addSuffix: true })}`
-                                                : "No activity logs"
-                                        }
+                                        {staff.isOnline && staff.lastCheckIn ? `Checked in ${formatDistanceToNow(new Date(staff.lastCheckIn), { addSuffix: true })}` : staff.lastCheckIn ? `Last seen ${formatDistanceToNow(new Date(staff.lastCheckIn), { addSuffix: true })}` : "No activity logs"}
                                     </span>
                                 </div>
-
-                                {/* Assigned vs Actual Warning */}
                                 {staff.isOnline && staff.currentLocation !== staff.assignedHouse && (
                                     <div className="mt-3 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 flex items-start gap-2">
                                         <ShieldAlert className="text-amber-500 w-4 h-4 shrink-0 mt-0.5" />
-                                        <p className="text-[10px] text-amber-200">
-                                            Warning: Checked into {staff.currentLocation} but assigned to {staff.assignedHouse}.
-                                        </p>
+                                        <p className="text-[10px] text-amber-200">Warning: Checked into {staff.currentLocation} but assigned to {staff.assignedHouse}.</p>
                                     </div>
                                 )}
                             </div>
@@ -195,6 +187,53 @@ export default function StaffAttendancePage() {
                     ))}
                 </div>
             )}
+
+            {/* === MANUAL MARK MODAL === */}
+            <Dialog open={isMarkModalOpen} onOpenChange={setIsMarkModalOpen}>
+                <DialogContent className="bg-[#18181b] border-neutral-800 sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-white">Mark Staff Attendance</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-lg flex gap-3">
+                            <ShieldAlert className="text-amber-500 shrink-0" size={20} />
+                            <p className="text-xs text-amber-200">
+                                This will create a manual entry for <strong>9 hours</strong> (Full Shift) for the selected date. This action is logged.
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs text-neutral-400 font-bold uppercase">Staff Member</label>
+                            <select
+                                value={selectedStaffId}
+                                onChange={(e) => setSelectedStaffId(e.target.value)}
+                                className="w-full bg-[#111113] border border-neutral-800 rounded-lg px-3 py-2 text-white outline-none focus:border-neutral-600"
+                            >
+                                <option value="">-- Select Staff --</option>
+                                {staffList.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs text-neutral-400 font-bold uppercase">Date</label>
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                className="w-full bg-[#111113] border border-neutral-800 rounded-lg px-3 py-2 text-white outline-none focus:border-neutral-600"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsMarkModalOpen(false)} className="border-neutral-700 text-white bg-transparent hover:bg-neutral-800">Cancel</Button>
+                        <Button onClick={handleMarkSubmit} disabled={isMarking} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                            {isMarking ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null} Confirm
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
